@@ -1,5 +1,7 @@
 # local_whisper_nemo
 
+*[Deutsche Version](README_de.md)*
+
 Portable Windows 11 push-to-talk dictation, fully offline.
 
 Hold `ctrl+shift`, speak, release — the text is typed straight into whatever
