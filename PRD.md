@@ -1,0 +1,12 @@
+# User stories 
+- as a win11 user, I want to be able to start the application with a simple double-click on the desktop icon
+- as a win11 user, I want to have all dependencies, llms, etc within the application folder
+- as a win11 user, I want to be able to hold a button combination to start the speech-to-text transcription process
+- as a win11 user, I want to be able to release the button combination to end the speech-to-text transcription process
+- as a win11 user, I want the generated text to appear at the position wherever the mouse pointer is, e.g. in a word document or a browser formular, in order to make the process seamless
+- as a win11 user, I want the application to be able to run in the background only showing a small icon or window without blocking the screen or other applications. the icon or window must close when the user releases the button combination
+- as a developer, I want the application to be easy to build and deploy. Maybe deployment is just a folder with all the necessary files and dependencies and a batch script starting the app or an even more easy solution
+- as a developer, I want the application to see an implementation along https://github.com/ToHeinAC/local_whisper and als llm (must have) https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b in order to have a good starting point with a working implementation and a modern llm
+- as a developer, I want the application to be test covered with pytest
+- as a developer I want the application to be github version controlled under https://github.com/ToHeinAC/local_whisper_nemo. The llm itself must be gitignored
+- as a system maintainer I want the application to be easy to monitor, i.e. log files of each session must be created and stored in a dedicated folder with the minimal information of user (e.g. win account user, start and end time of the session) in a appended structured format like json or csv

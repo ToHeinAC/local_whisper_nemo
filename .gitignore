@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# uv / venv
+.venv/
+
+# Environment
+.env
+
+# App data (bundled per-machine, not versioned)
+models/
+logs/
+tools/
+
+# OS / IDE
+Thumbs.db
+.vscode/
+.idea/
+
+# Local Claude Code tooling config
+.claude/
