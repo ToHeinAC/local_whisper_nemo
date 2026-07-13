@@ -12,7 +12,8 @@ from .transcriber import Transcriber
 def main() -> None:
     settings = load_settings()
     print(f"Downloading model '{settings.model}' into {settings.models_dir} ...")
-    Transcriber(settings)  # loading triggers the download into models_dir
+    # The only place allowed to reach the network; the app itself loads from cache.
+    Transcriber(settings, allow_download=True)
     print("Model downloaded.")
 
 

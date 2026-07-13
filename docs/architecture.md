@@ -73,3 +73,17 @@ the PRD does not ask for. `processor(audio, language=…)` accepts a locale stri
 `Transcriber` passes `cache_dir=models/` to `from_pretrained`, so weights land
 inside the app folder rather than the user's global HF cache. `download_model.py`
 pre-fetches them during install, so runtime needs no network.
+
+**Runtime is network-free, and that is enforced.** `Transcriber` also passes
+`local_files_only=True` unless constructed with `allow_download=True` — which
+only `download_model.py` does. Without it, `from_pretrained` revalidates every
+config file against the Hub on *each* start (~25 HEAD requests: `config.json`,
+`processor_config.json`, `tokenizer_config.json`, …). The weights still come from
+disk, so it is not a re-download, but it makes startup slower, leaks usage to the
+Hub, and — the real problem — makes the app fail to start when the Hub is
+unreachable. `tests/test_transcriber.py::test_model_loads_without_touching_the_network`
+asserts the HTTP client logs zero requests during load.
+
+Consequence: if `models/` is empty or incomplete, the app now fails with a clear
+"file not found in cache" error instead of silently downloading 2.4 GB on first
+launch. Run `install.bat` (or `uv run python -m src.download_model`) first.

@@ -19,15 +19,25 @@ from .config import Settings
 
 
 class Transcriber:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, allow_download: bool = False) -> None:
+        """Load the model. Reads only the local cache unless `allow_download`.
+
+        Without `local_files_only`, `from_pretrained` revalidates every config
+        file against the Hub on each start: a dozen HEAD requests that make
+        startup slower and dependent on network reachability, even though the
+        weights are already on disk. Only `download_model.py` needs the network.
+        """
         self._settings = settings
         settings.models_dir.mkdir(parents=True, exist_ok=True)
-        cache_dir = str(settings.models_dir)
-        self._processor = AutoProcessor.from_pretrained(settings.model, cache_dir=cache_dir)
+        load_args = {
+            "cache_dir": str(settings.models_dir),
+            "local_files_only": not allow_download,
+        }
+        self._processor = AutoProcessor.from_pretrained(settings.model, **load_args)
         self._model = AutoModelForRNNT.from_pretrained(
             settings.model,
-            cache_dir=cache_dir,
             dtype=torch.float16 if settings.device == "cuda" else torch.float32,
+            **load_args,
         ).to(settings.device)
         self._model.eval()
 

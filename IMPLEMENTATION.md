@@ -25,7 +25,7 @@ punctuation mark dictated right next to a command word may be swallowed.
 |--------|----------------|
 | `config.py` | Load `.env` into a `Settings` dataclass; resolve app-relative paths and the torch device |
 | `recorder.py` | `AudioRecorder` — mic capture (sounddevice) → mono float32 numpy |
-| `transcriber.py` | `Transcriber` — Nemotron ASR via transformers, weights cached under `models/` |
+| `transcriber.py` | `Transcriber` — Nemotron ASR via transformers; loads from `models/` cache only (no network unless `allow_download`) |
 | `commands.py` | `parse()` — split transcript into text + special-key actions (voice formatting) |
 | `injector.py` | `TextInjector` — type text (`inject`) and press keys (`press`) at cursor via Win32 `SendInput` |
 | `overlay.py` | `Overlay` — status indicator: animated mic-level waveform while recording, text while transcribing (tkinter) |
@@ -51,6 +51,11 @@ language-code handling are in [docs/architecture.md](docs/architecture.md).
 
 Measured on CPU (fp32): 11 s of speech transcribed in ~1.5 s; first model load
 ~45 s.
+
+The model is loaded with `local_files_only=True`, so a running app makes **zero**
+HTTP requests — the weights and configs come from `models/` only. Only
+`download_model.py` (run by `install.bat`) may reach the Hub. See
+[docs/architecture.md](docs/architecture.md#offline-model-storage).
 
 ## Threading model
 
