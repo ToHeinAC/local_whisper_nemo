@@ -1,8 +1,11 @@
 """Global push-to-talk listener.
 
 `start_cb` fires when the combo is pressed; `stop_cb` fires when the trigger key
-(the last key of the combo, e.g. `space` in `ctrl+alt+space`) is released. An
+(the last key of the combo, e.g. `shift` in `ctrl+shift`) is released. An
 active flag prevents duplicate start/stop while the combo is held.
+
+Pure-modifier combos like `ctrl+shift` work: the `keyboard` library treats
+modifiers as ordinary keys, so `shift` is a valid trigger key.
 """
 
 from __future__ import annotations

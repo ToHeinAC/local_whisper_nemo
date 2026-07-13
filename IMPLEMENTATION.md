@@ -9,7 +9,7 @@ original goals and [docs/](docs/) for component detail.
 
 ## What it does
 
-Hold a global hotkey (`ctrl+alt+space` by default) → record the microphone →
+Hold a global hotkey (`ctrl+shift` by default) → record the microphone →
 transcribe locally with NVIDIA Nemotron ASR → type the text at the cursor →
 release hides the indicator and logs the session. Fully offline; model weights
 live in `models/`.
@@ -91,6 +91,11 @@ desktop shortcut), then `run.bat`. No system Python required. Details in
 
 - The `keyboard` library global hook may require running as **administrator** on
   Windows 11. Fallback option: `pynput` (no admin). See docs/architecture.md.
+- The `ctrl+shift` default is **not yet confirmed on a live desktop**: global
+  hooks cannot be exercised from a headless test session (even the previous
+  `ctrl+alt+space` default produces no callbacks there), so this needs a manual
+  check. It also collides with Windows' own layout-switch shortcut when multiple
+  keyboard layouts are installed. See docs/architecture.md.
 - `librosa` is a hard runtime dependency of the model's feature extractor (not
   mentioned on the model card, discovered at first load).
 - Manual verification still pending: real hold-to-talk typing into Notepad/Word,

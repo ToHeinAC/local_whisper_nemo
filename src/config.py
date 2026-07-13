@@ -48,7 +48,7 @@ def load_settings() -> Settings:
         model=os.getenv("ASR_MODEL", "nvidia/nemotron-3.5-asr-streaming-0.6b").strip(),
         language=os.getenv("ASR_LANGUAGE", "auto").strip(),
         device=_resolve_device(os.getenv("DEVICE", "auto").strip().lower()),
-        hotkey=os.getenv("HOTKEY", "ctrl+alt+space").strip(),
+        hotkey=os.getenv("HOTKEY", "ctrl+shift").strip(),
         type_delay=float(os.getenv("TYPE_DELAY", "0.0")),
         sample_rate=int(os.getenv("SAMPLE_RATE", "16000")),
         models_dir=MODELS_DIR,

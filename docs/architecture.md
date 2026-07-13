@@ -34,7 +34,21 @@ applies it and animates the level bars, keeping widget access single-threaded.
 
 `PushToTalk` registers `keyboard.add_hotkey(combo, on_press)` for the down edge
 and `keyboard.on_release_key(trigger_key, on_release)` for the up edge, where
-`trigger_key` is the last key of the combo (e.g. `space` in `ctrl+alt+space`).
+`trigger_key` is the last key of the combo (e.g. `shift` in `ctrl+shift`).
+
+**Why the default is a pure-modifier combo.** `ctrl+shift` holds down comfortably
+for a long dictation and types nothing on its own if the app isn't running. The
+`keyboard` library treats modifiers as ordinary keys, so `shift` is a valid
+trigger key and no code change was needed. Two things to be aware of:
+
+- Windows uses `ctrl+shift` to **switch keyboard layouts** when more than one
+  layout is installed. If you have several, either remove the extra layouts or
+  pick a different `HOTKEY` (e.g. `ctrl+alt+space`).
+- Recording stops on release of the **last** key in the combo (`shift`). If you
+  keep `ctrl` held down while the transcript is typed, the synthetic keystrokes
+  arrive as `ctrl+<key>` shortcuts in the target app. In practice transcription
+  takes ~1 s, by which time the modifiers are long released — but release the
+  whole combo, not just `shift`.
 
 **Admin rights:** the `keyboard` library installs a low-level global hook that on
 some Windows 11 setups requires running as administrator. If avoiding admin is a

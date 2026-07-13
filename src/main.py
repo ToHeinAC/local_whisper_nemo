@@ -53,7 +53,7 @@ def main() -> None:
     except ValueError as exc:
         print(
             f"\nInvalid HOTKEY {settings.hotkey!r} in .env: {exc.args[0]}\n"
-            "Use keyboard-library key names, e.g. 'ctrl+alt+space'."
+            "Use keyboard-library key names, e.g. 'ctrl+shift' or 'ctrl+alt+space'."
         )
         raise SystemExit(1)
 

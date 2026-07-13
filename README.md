@@ -2,7 +2,7 @@
 
 Portable Windows 11 push-to-talk dictation, fully offline.
 
-Hold `ctrl+alt+space`, speak, release — the text is typed straight into whatever
+Hold `ctrl+shift`, speak, release — the text is typed straight into whatever
 field has the cursor (Word, browser, chat, …). Speech recognition runs locally
 with NVIDIA's [nemotron-3.5-asr-streaming-0.6b](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)
 (40 locales, German and English included). Nothing leaves the machine.
@@ -17,9 +17,13 @@ the desktop. No admin rights, no system Python.
 
 Double-click the desktop shortcut (or `run.bat`). The app sits in the system tray.
 
-- **Hold** `ctrl+alt+space` → a small waveform indicator appears while recording.
+- **Hold** `ctrl+shift` → a small waveform indicator appears while recording.
 - **Release** → the text is transcribed and typed at the cursor; the indicator disappears.
 - **Quit** from the tray icon.
+
+> If you have **more than one keyboard layout** installed, Windows uses
+> `ctrl+shift` to switch between them. Set a different `HOTKEY` in `.env`
+> (e.g. `ctrl+alt+space`) to avoid the clash.
 
 Spoken formatting commands: *new line*, *next line*, *new paragraph*, *tab*.
 

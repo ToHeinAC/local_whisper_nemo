@@ -44,7 +44,7 @@ never downloads anything; if `uv` is missing it tells you to run `install.bat`.
 
 - Double-click the desktop shortcut, or run `run.bat`.
 - Startup loads the model into RAM (~45 s on CPU) before the hotkey works.
-- Hold the hotkey (`ctrl+alt+space`), speak, release — text appears at the cursor.
+- Hold the hotkey (`ctrl+shift`), speak, release — text appears at the cursor.
 - Quit from the tray icon (red dot) → **Quit**.
 
 > **Windows 11 tray:** new tray icons are hidden in the overflow flyout by
