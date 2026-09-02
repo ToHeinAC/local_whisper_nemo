@@ -11,10 +11,10 @@ from .transcriber import Transcriber
 
 def main() -> None:
     settings = load_settings()
-    print(f"Downloading model '{settings.model}' into {settings.models_dir} ...")
-    # The only place allowed to reach the network; the app itself loads from cache.
-    Transcriber(settings, allow_download=True)
-    print("Model downloaded.")
+    print(f"Ensuring model '{settings.model}' is in {settings.models_dir} ...")
+    # Downloads only if the cache is empty; a second run is a no-op local load.
+    Transcriber(settings)
+    print("Model ready.")
 
 
 if __name__ == "__main__":

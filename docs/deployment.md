@@ -33,12 +33,14 @@ This will:
 4. `uv sync` — create `.venv/` (against the in-folder Python) and install
    dependencies (torch + transformers: ~1 GB, this is the slow step),
 5. download the Nemotron ASR weights into `models/` (~2.4 GB incl. the HF cache
-   layout),
+   layout; skipped if they are already there),
 6. create a **desktop shortcut** (`local_whisper_nemo.lnk`, launches minimized).
 
 Both `install.bat` and `run.bat` set `UV_PYTHON_INSTALL_DIR` to `tools\python` and
 resolve `uv` from `tools\uv.exe` first, falling back to a `uv` on PATH. `run.bat`
-never downloads anything; if `uv` is missing it tells you to run `install.bat`.
+downloads nothing as long as `models/` holds the weights - if it doesn't, the app
+fetches them once (logged as a warning) instead of failing. If `uv` is missing it
+tells you to run `install.bat`.
 
 ## Run
 

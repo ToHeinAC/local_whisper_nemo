@@ -74,16 +74,44 @@ the PRD does not ask for. `processor(audio, language=…)` accepts a locale stri
 inside the app folder rather than the user's global HF cache. `download_model.py`
 pre-fetches them during install, so runtime needs no network.
 
-**Runtime is network-free, and that is enforced.** `Transcriber` also passes
-`local_files_only=True` unless constructed with `allow_download=True` — which
-only `download_model.py` does. Without it, `from_pretrained` revalidates every
-config file against the Hub on *each* start (~25 HEAD requests: `config.json`,
-`processor_config.json`, `tokenizer_config.json`, …). The weights still come from
-disk, so it is not a re-download, but it makes startup slower, leaks usage to the
-Hub, and — the real problem — makes the app fail to start when the Hub is
-unreachable. `tests/test_transcriber.py::test_model_loads_without_touching_the_network`
-asserts the HTTP client logs zero requests during load.
+**Cache first, download only as a fallback.** `Transcriber.__init__` loads with
+`local_files_only=True`; only if that raises `OSError` (empty or incomplete
+cache) does it log a warning and retry with downloads enabled. So the normal
+start is network-free, and a fresh checkout still works — it just pays the
+~2.4 GB download once. `download_model.py` uses the same path: it is a plain
+`Transcriber(settings)`, which downloads on a cold cache and is a fast local
+load afterwards.
 
-Consequence: if `models/` is empty or incomplete, the app now fails with a clear
-"file not found in cache" error instead of silently downloading 2.4 GB on first
-launch. Run `install.bat` (or `uv run python -m src.download_model`) first.
+Why not simply always allow the network: without `local_files_only`,
+`from_pretrained` revalidates every config file against the Hub on *each* start
+(~25 HEAD requests: `config.json`, `processor_config.json`,
+`tokenizer_config.json`, …). The weights still come from disk, so it is not a
+re-download, but it leaks usage to the Hub and — the real problem — makes
+startup hang on a bad connection: each of those requests waits out its own
+connect timeout and retries, so a reachable-but-stalling network turns a 1 s
+launch into minutes. `tests/test_transcriber.py` pins all three properties:
+`test_importing_the_transcriber_puts_the_hub_client_offline`,
+`test_model_loads_without_touching_the_network` (zero request logs during a
+cached load) and `test_missing_cache_falls_back_to_download`.
+
+**Why `local_files_only` alone is not enough.** The Hub client also makes calls
+of its own: it fetches an agent-harness registry from the Hub at most once a
+day, unrelated to the weights. It is best-effort telemetry, but on a connection
+that accepts TCP and then stalls it burns its full 3 s timeout before startup
+continues — and its `httpx` INFO line reads like a model download, which is how
+this was first noticed (it is not: the weights load from disk in under a
+second).
+
+So `transcriber.py` sets `HF_HUB_OFFLINE=1` *before* importing `transformers`
+(the constant is read once, at `huggingface_hub` import time). A cached start
+then cannot make any request at all. `_download_and_load` lifts it again by
+assigning `huggingface_hub.constants.HF_HUB_OFFLINE = False`, which the client
+re-reads per call — so the fallback download still works.
+
+Measured against a TCP blackhole endpoint with the registry cache cleared:
+
+| load path | time |
+|-----------|------|
+| network-validating load (before `local_files_only`) | > 300 s, killed |
+| cached load, `local_files_only` only | 3.8 s |
+| cached load, offline at import | 1.0 s, zero requests attempted |

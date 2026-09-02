@@ -1,11 +1,14 @@
 """Transcriber tests.
 
-The empty-input path is fast and device-free. The real-model paths are marked
-`slow` because they load the actual Nemotron model (from the local cache).
+The empty-input and fallback paths are fast and device-free. The real-model
+paths are marked `slow` because they load the actual Nemotron model (from the
+local cache).
 """
 
 import logging
+from dataclasses import replace
 
+import huggingface_hub.constants
 import numpy as np
 import pytest
 
@@ -44,3 +47,35 @@ def test_model_loads_without_touching_the_network(caplog):
         if r.name.startswith(("httpx", "urllib3", "requests"))
     ]
     assert not http_records, f"model load hit the network: {http_records}"
+
+
+def test_importing_the_transcriber_puts_the_hub_client_offline():
+    """A flaky connection must not be able to stall startup at all.
+
+    huggingface_hub reads HF_HUB_OFFLINE at import time; importing `transcriber`
+    has to have set it, or the Hub client is free to make its own calls (e.g. the
+    daily agent-harness ping) that block on connect timeouts.
+    """
+    assert huggingface_hub.constants.HF_HUB_OFFLINE is True
+
+
+def test_missing_cache_falls_back_to_download(tmp_path, monkeypatch, caplog):
+    """An empty cache must lift offline mode and retry instead of failing."""
+    attempts = []
+
+    def fake_load(self, local_files_only):
+        attempts.append((local_files_only, huggingface_hub.constants.HF_HUB_OFFLINE))
+        if local_files_only:
+            raise OSError("not in the disk cache")
+
+    monkeypatch.setattr(Transcriber, "_load", fake_load)
+    # setattr so the flipped constant is restored for the other tests.
+    monkeypatch.setattr(huggingface_hub.constants, "HF_HUB_OFFLINE", True)
+    settings = replace(load_settings(), models_dir=tmp_path / "models")
+
+    with caplog.at_level(logging.WARNING):
+        Transcriber(settings)
+
+    # cached attempt stays offline; the retry runs with the network available
+    assert attempts == [(True, True), (False, False)]
+    assert "downloading" in caplog.text

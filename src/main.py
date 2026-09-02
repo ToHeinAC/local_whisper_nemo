@@ -30,7 +30,10 @@ def main() -> None:
     )
     settings = load_settings()
 
-    print(f"Loading ASR model '{settings.model}' ({settings.device})...")
+    print(
+        f"Loading ASR model '{settings.model}' ({settings.device}) "
+        f"from {settings.models_dir} ..."
+    )
     transcriber = Transcriber(settings)
     print("Model ready.")
 
