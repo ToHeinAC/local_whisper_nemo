@@ -8,6 +8,7 @@ hotkey UP   ─▶ (worker thread) Controller.on_release:
                  audio = recorder.stop()
                  overlay.show_text("… Transcribing")
                  text  = transcriber.transcribe(audio)
+                 text  = postprocess.normalize(text, lang)  # fillers out, digits in
                  for kind, value in commands.parse(text):   # split text vs. keys
                      injector.inject/press(value)            # typed at cursor
                  logger.record(start, end, len(text))
@@ -115,3 +116,47 @@ Measured against a TCP blackhole endpoint with the registry cache cleared:
 | network-validating load (before `local_files_only`) | > 300 s, killed |
 | cached load, `local_files_only` only | 3.8 s |
 | cached load, offline at import | 1.0 s, zero requests attempted |
+
+## Transcript cleanup
+
+`postprocess.normalize(text, locale)` runs between the ASR and `commands.parse`,
+because both fixes are easier on the raw sentence than on the split action plan —
+and dropping hesitations first lets the number pass see "drei äh und zwanzig" as
+the number it is.
+
+**Hesitations.** A single regex removes `äh`, `ähm`, `ähem`, `öh(m)`, `hm`, `uh`,
+`uhm`, `erm`, `umm` (repeated vowels/consonants included, so `ähhh` and `hmmm`
+match). It eats the surrounding whitespace and commas too, so "Das ist, äh, ein
+Test." becomes "Das ist ein Test." rather than leaving a doubled comma. If the
+removal was at the very start, the new first letter is re-capitalised — "Ähm, das
+war es." would otherwise start lowercase.
+
+Two sounds are deliberately **not** in the list:
+
+- `um` — the German preposition. The `", um … zu"` clause is comma-delimited
+  exactly like the English filler, so no cheap rule separates them, and
+  corrupting German sentences is worse than leaving an English "Um," in.
+- `mhm` — an affirmation ("yes"), not a hesitation; removing it inverts meaning.
+
+**Numbers.** `text_to_num.alpha2digit` (MIT) converts cardinals, ordinals and
+decimals: `dreiundzwanzig` → `23`, `der dritte` → `der 3.`, `drei Komma fünf` →
+`3,5`, `the third` → `the 3rd`, `three point five` → `3.5`. The decimal sign
+follows the language, which is why the pass is language-specific.
+
+The `threshold=1.5` argument is what keeps the indefinite article intact.
+`alpha2digit` converts an *isolated* number only above the threshold, so `ein`
+and `one` stay words while everything from two upwards converts:
+
+| threshold | `ein Haus` | `zwei Punkte` | `dreiundzwanzig` |
+|-----------|------------|---------------|------------------|
+| 0 | `1 Haus` ✗ | `2 Punkte` | `23` |
+| 1.5 | `ein Haus` | `2 Punkte` | `23` |
+| 3.0 (library default) | `ein Haus` | `zwei Punkte` ✗ | `23` |
+
+Grouped numbers, ordinals and decimals ignore the threshold entirely, so
+"der erste Punkt" still becomes "der 1. Punkt".
+
+**Language selection.** `ASR_LANGUAGE` picks the pass: `de-*` → German, `en-*` →
+English, anything else (including `auto`) runs both. Running both is safe because
+a pass only matches its own language's number words — German text through the
+English pass, and vice versa, comes back byte-identical.

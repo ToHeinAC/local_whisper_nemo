@@ -14,10 +14,25 @@ transcribe locally with NVIDIA Nemotron ASR → type the text at the cursor →
 release hides the indicator and logs the session. Fully offline; model weights
 live in `models/`.
 
-**Voice formatting commands** (recognised in the transcript by `commands.py`):
-`new line` / `next line` → Enter, `new paragraph` → Enter×2, `tab` → Tab. The
-match eats whitespace/punctuation the model puts around the spoken command, so a
-punctuation mark dictated right next to a command word may be swallowed.
+**Voice formatting commands** (recognised in the transcript by `commands.py`),
+German and English:
+
+| spoken | effect |
+|--------|--------|
+| `new line` / `next line` / `neue Zeile` / `nächste Zeile` | Enter |
+| `new paragraph` / `neuer Absatz` | Enter×2 (blank line between blocks) |
+| `tab` / `Tabulator` | Tab |
+
+The match eats whitespace/punctuation the model puts around the spoken command,
+so a punctuation mark dictated right next to a command word may be swallowed.
+
+**Transcript cleanup** (`postprocess.py`, runs before `commands.parse`):
+hesitations (`äh`, `ähm`, `hm`, `uh`, `erm`, …) are dropped together with the
+commas the ASR sets them off with, and spelled-out numbers become digits —
+cardinals, ordinals and decimals, in both languages (`dreiundzwanzig` → `23`,
+`der dritte` → `der 3.`, `drei Komma fünf` → `3,5`). Details and the two
+deliberate exclusions are in
+[docs/architecture.md](docs/architecture.md#transcript-cleanup).
 
 ## Components (`src/`)
 
@@ -26,6 +41,7 @@ punctuation mark dictated right next to a command word may be swallowed.
 | `config.py` | Load `.env` into a `Settings` dataclass; resolve app-relative paths and the torch device |
 | `recorder.py` | `AudioRecorder` — mic capture (sounddevice) → mono float32 numpy |
 | `transcriber.py` | `Transcriber` — Nemotron ASR via transformers; forces the Hub client offline and loads from the `models/` cache, downloading only if it is missing |
+| `postprocess.py` | `normalize()` — drop hesitations, spell numbers as digits (de/en) |
 | `commands.py` | `parse()` — split transcript into text + special-key actions (voice formatting) |
 | `injector.py` | `TextInjector` — type text (`inject`) and press keys (`press`) at cursor via Win32 `SendInput` |
 | `overlay.py` | `Overlay` — status indicator: animated mic-level waveform while recording, text while transcribing (tkinter) |
@@ -36,9 +52,10 @@ punctuation mark dictated right next to a command word may be swallowed.
 | `main.py` | wiring + threading + run loop |
 | `download_model.py` | one-time model pre-download for offline use |
 
-Everything except `config.py`, `transcriber.py` and `download_model.py` is carried
-over unchanged from [local_whisper](https://github.com/ToHeinAC/local_whisper); the
-ASR engine is the only substantive difference.
+Everything except `config.py`, `transcriber.py`, `postprocess.py` and
+`download_model.py` is carried over unchanged from
+[local_whisper](https://github.com/ToHeinAC/local_whisper); the ASR engine is the
+only substantive difference.
 
 ## Model
 

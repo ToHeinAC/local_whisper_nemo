@@ -7,7 +7,7 @@ import numpy as np
 from src.controller import Controller
 
 
-def _make_controller(text="hello world"):
+def _make_controller(text="hello world", language="en-US"):
     recorder = MagicMock()
     recorder.stop.return_value = np.zeros(10, dtype=np.float32)
     transcriber = MagicMock()
@@ -15,7 +15,7 @@ def _make_controller(text="hello world"):
     injector = MagicMock()
     logger = MagicMock()
     overlay = MagicMock()
-    ctrl = Controller(recorder, transcriber, injector, logger, overlay)
+    ctrl = Controller(recorder, transcriber, injector, logger, overlay, language)
     return ctrl, recorder, transcriber, injector, logger, overlay
 
 
@@ -53,3 +53,15 @@ def test_second_press_while_busy_is_ignored():
     ctrl.on_press()
     ctrl.on_press()
     assert recorder.start.call_count == 1
+
+
+def test_transcript_is_normalized_before_it_is_typed():
+    """The injected text is the cleaned transcript, not the raw one."""
+    ctrl, _, _, injector, _, _ = _make_controller(
+        text="Das sind, äh, dreiundzwanzig Grad.", language="de-DE"
+    )
+
+    ctrl.on_press()
+    ctrl.on_release()
+
+    injector.inject.assert_called_once_with("Das sind 23 Grad.")

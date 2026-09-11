@@ -36,7 +36,21 @@ erst danach reagiert der Hotkey.
 > `Strg+Shift` selbst zum Umschalten zwischen den Layouts. Trage in dem Fall in
 > der `.env` einen anderen `HOTKEY` ein (z. B. `ctrl+alt+space`).
 
-Gesprochene Formatierungsbefehle: *new line*, *next line*, *new paragraph*, *tab*.
+Gesprochene Formatierungsbefehle, deutsch und englisch:
+
+| du sagst | du bekommst |
+|----------|-------------|
+| *neue Zeile* / *nächste Zeile* / *new line* / *next line* | Zeilenumbruch |
+| *neuer Absatz* / *new paragraph* | Leerzeile zwischen den Blöcken |
+| *Tabulator* / *tab* | Tabulatorsprung |
+
+Der Text wird vor dem Tippen außerdem aufgeräumt: Fülllaute (*äh*, *ähm*, *hm*, …)
+fallen weg, und ausgeschriebene Zahlen werden zu Ziffern — *dreiundzwanzig* →
+`23`, *der dritte* → `der 3.`, *drei Komma fünf* → `3,5`.
+
+> *um* bleibt absichtlich stehen: im Deutschen ist es eine Präposition
+> („…, um pünktlich zu sein“), und das lässt sich nicht zuverlässig vom
+> englischen Füllwort unterscheiden.
 
 ## Konfiguration
 

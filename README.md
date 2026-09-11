@@ -27,7 +27,17 @@ Double-click the desktop shortcut (or `run.bat`). The app sits in the system tra
 > `ctrl+shift` to switch between them. Set a different `HOTKEY` in `.env`
 > (e.g. `ctrl+alt+space`) to avoid the clash.
 
-Spoken formatting commands: *new line*, *next line*, *new paragraph*, *tab*.
+Spoken formatting commands, German and English:
+
+| say | you get |
+|-----|---------|
+| *new line* / *next line* / *neue Zeile* / *nächste Zeile* | line break |
+| *new paragraph* / *neuer Absatz* | blank line between blocks |
+| *tab* / *Tabulator* | tab stop |
+
+The transcript is also cleaned up before it is typed: hesitations (*äh*, *ähm*,
+*uh*, …) are dropped, and spelled-out numbers become digits — *dreiundzwanzig* →
+`23`, *der dritte* → `der 3.`, *three point five* → `3.5`.
 
 ## Configure
 

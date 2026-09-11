@@ -16,6 +16,7 @@ dependencies = [
     "pillow>=10.0",
     "python-dotenv>=1.0",
     "huggingface-hub>=0.23",
+    "text2num>=3.1.0",  # spelled-out numbers -> digits (de/en), imports as text_to_num
 ]
 
 [dependency-groups]

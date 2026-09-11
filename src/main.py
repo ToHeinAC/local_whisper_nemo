@@ -45,6 +45,7 @@ def main() -> None:
         injector=TextInjector(settings.type_delay),
         logger=SessionLogger(settings.logs_dir),
         overlay=overlay,
+        language=settings.language,
     )
 
     def stop_in_worker() -> None:

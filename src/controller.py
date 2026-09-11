@@ -12,6 +12,7 @@ from datetime import datetime
 from .commands import parse
 from .injector import TextInjector
 from .overlay import Overlay
+from .postprocess import normalize
 from .recorder import AudioRecorder
 from .session_log import SessionLogger
 from .transcriber import Transcriber
@@ -27,12 +28,14 @@ class Controller:
         injector: TextInjector,
         logger: SessionLogger,
         overlay: Overlay,
+        language: str,
     ) -> None:
         self._recorder = recorder
         self._transcriber = transcriber
         self._injector = injector
         self._logger = logger
         self._overlay = overlay
+        self._language = language
         self._busy = False
         self._start: datetime | None = None
 
@@ -52,8 +55,9 @@ class Controller:
             audio = self._recorder.stop()
             log.info("hotkey up -> captured %d samples, transcribing", audio.size)
             self._overlay.show_text("… Transcribing")
-            text = self._transcriber.transcribe(audio)
-            log.info("transcript: %r", text)
+            raw = self._transcriber.transcribe(audio)
+            text = normalize(raw, self._language)
+            log.info("transcript: %r -> %r", raw, text)
             if text:
                 for kind, value in parse(text):
                     if kind == "text":

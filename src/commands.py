@@ -1,8 +1,9 @@
 """Turn a transcript into an ordered plan of text + special-key actions.
 
 Whisper only produces plain text, so spoken formatting words like "new line"
-arrive as literal words. This module recognises a small fixed set of them and
-splits the transcript into actions the injector can execute:
+arrive as literal words. This module recognises a small fixed set of them, in
+German and English, and splits the transcript into actions the injector can
+execute:
 
     parse("intro new line body") ->
         [("text", "intro"), ("key", "enter"), ("text", "body")]
@@ -22,20 +23,26 @@ import re
 _ENTER = ("key", "enter")
 _TAB = ("key", "tab")
 
-# More specific phrases first; \b keeps "tab" from matching inside "table".
+# More specific phrases first; \b keeps "tab" from matching inside "table"
+# (and inside "Tabulator"). The German adjective ending is left open because it
+# varies with what the ASR heard: "neuer Absatz" as easily as "neuen Absatz".
 _COMMAND_RE = re.compile(
-    r"[\s.,!?;:]*\b(new\s+paragraph|(?:new|next)\s+line|tab)\b[\s.,!?;:]*",
+    r"[\s.,!?;:]*\b("
+    r"new\s+paragraph|neue[rnms]?\s+Absatz"
+    r"|(?:new|next)\s+line|(?:neue|nächste)\s+Zeile"
+    r"|tabulator|tab"
+    r")\b[\s.,!?;:]*",
     re.IGNORECASE,
 )
 
 
 def _actions_for(phrase: str) -> list[tuple[str, str]]:
     normalized = re.sub(r"\s+", " ", phrase.strip().lower())
-    if normalized == "new paragraph":
+    if normalized.endswith("absatz") or normalized == "new paragraph":
         return [_ENTER, _ENTER]
-    if normalized in ("new line", "next line"):
+    if normalized.endswith(("line", "zeile")):
         return [_ENTER]
-    return [_TAB]  # only remaining match is "tab"
+    return [_TAB]  # only remaining matches are "tab" and "tabulator"
 
 
 def parse(text: str) -> list[tuple[str, str]]:
