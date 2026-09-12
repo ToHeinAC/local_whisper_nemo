@@ -7,8 +7,8 @@ All settings are read from `.env` (copy from `.env.example`). Loaded by
 |----------|---------|---------|
 | `ASR_MODEL` | `nvidia/nemotron-3.5-asr-streaming-0.6b` | Hugging Face model id |
 | `ASR_LANGUAGE` | `auto` | Locale (`de-DE`, `en-US`, …) or `auto` to detect per utterance |
-| `DEVICE` | `auto` | `auto` (CUDA if available), `cpu`, or `cuda` |
-| `HOTKEY` | `ctrl+shift` | Push-to-talk combo (`keyboard` library syntax) |
+| `DEVICE` | `auto` | `auto` (CUDA if available, else CPU), `cpu`, or `cuda`; any other value is passed to torch as-is (e.g. `mps`) |
+| `HOTKEY` | `ctrl+shift` | Push-to-talk combo (`keyboard` library syntax; macOS also takes `cmd` and aliases) |
 | `TYPE_DELAY` | `0.0` | Seconds between simulated keystrokes |
 | `SAMPLE_RATE` | `16000` | Mic capture rate (Hz); the model expects 16000 |
 
@@ -28,13 +28,20 @@ combos are allowed; so are classic ones like `ctrl+alt+space`.
 
 Change the default if you have **more than one keyboard layout installed**:
 Windows itself uses `ctrl+shift` to cycle layouts, and it will keep doing so.
-See [architecture.md](architecture.md#hotkey-detection) for the full caveats.
+macOS has no such clash on `ctrl+shift`.
+
+Key names are the `keyboard` library's on Windows. The macOS backend takes the
+same ones plus `cmd`, and accepts `command` / `option` / `opt` / `control` /
+`super` as aliases. See [architecture.md](architecture.md#hotkey-detection) for
+the full caveats.
 
 ## Accuracy / speed trade-offs
 
 - Pin `ASR_LANGUAGE=de-DE` if you only dictate German: it skips language
   detection and avoids the model switching locale mid-utterance.
 - `DEVICE=auto` picks CUDA when a GPU is present (fp16) and CPU otherwise (fp32).
-  The 0.6B model is small enough to run on CPU faster than real time.
+  The 0.6B model is small enough to run on CPU faster than real time — including
+  on Apple silicon, where `auto` resolves to `cpu`. `DEVICE=mps` reaches torch
+  untouched but has not been verified for this RNN-T.
 - Transcription-ready locales include `de-DE`, `en-US`, `en-GB`, `fr-FR`, `es-ES`,
   `it-IT`, `nl-NL`, `pt-PT`, `pl-PL` and more — see the model card for the full list.

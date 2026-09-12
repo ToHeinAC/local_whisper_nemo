@@ -1,44 +1,25 @@
 """Global push-to-talk listener.
 
-`start_cb` fires when the combo is pressed; `stop_cb` fires when the trigger key
-(the last key of the combo, e.g. `shift` in `ctrl+shift`) is released. An
-active flag prevents duplicate start/stop while the combo is held.
+Platform backends, selected at import:
 
-Pure-modifier combos like `ctrl+shift` work: the `keyboard` library treats
-modifiers as ordinary keys, so `shift` is a valid trigger key.
+- Windows: `hotkey_keyboard` — the `keyboard` library's global hooks.
+- macOS: `hotkey_darwin` — a pynput `Listener` tracking held keys.
+
+Both expose `PushToTalk(combo, start_cb, stop_cb)`: `start_cb` fires when the
+combo goes down, `stop_cb` when the trigger key (the last key of the combo) is
+released. `start()` registers the hooks without blocking and raises `ValueError`
+if the combo names a key the backend does not know.
 """
 
 from __future__ import annotations
 
-from typing import Callable
+import sys
 
-import keyboard
+if sys.platform == "win32":
+    from .hotkey_keyboard import PushToTalk
+elif sys.platform == "darwin":
+    from .hotkey_darwin import PushToTalk
+else:
+    raise ImportError(f"No global hotkey backend for platform {sys.platform!r}")
 
-
-class PushToTalk:
-    def __init__(
-        self,
-        combo: str,
-        start_cb: Callable[[], None],
-        stop_cb: Callable[[], None],
-    ) -> None:
-        self._combo = combo
-        self._trigger_key = combo.split("+")[-1].strip()
-        self._start_cb = start_cb
-        self._stop_cb = stop_cb
-        self._active = False
-
-    def _on_combo(self) -> None:
-        if not self._active:
-            self._active = True
-            self._start_cb()
-
-    def _on_release(self, _event) -> None:  # noqa: ANN001
-        if self._active:
-            self._active = False
-            self._stop_cb()
-
-    def start(self) -> None:
-        """Register global hooks (non-blocking)."""
-        keyboard.add_hotkey(self._combo, self._on_combo, trigger_on_release=False)
-        keyboard.on_release_key(self._trigger_key, self._on_release)
+__all__ = ["PushToTalk"]

@@ -12,7 +12,8 @@ original goals and [docs/](docs/) for component detail.
 Hold a global hotkey (`ctrl+shift` by default) → record the microphone →
 transcribe locally with NVIDIA Nemotron ASR → type the text at the cursor →
 release hides the indicator and logs the session. Fully offline; model weights
-live in `models/`.
+live in `models/`. Runs on **Windows 11 and macOS** — keyboard capture and text
+injection have a backend per platform, everything else is shared.
 
 **Voice formatting commands** (recognised in the transcript by `commands.py`),
 German and English:
@@ -43,19 +44,21 @@ deliberate exclusions are in
 | `transcriber.py` | `Transcriber` — Nemotron ASR via transformers; forces the Hub client offline and loads from the `models/` cache, downloading only if it is missing |
 | `postprocess.py` | `normalize()` — drop hesitations, spell numbers as digits (de/en) |
 | `commands.py` | `parse()` — split transcript into text + special-key actions (voice formatting) |
-| `injector.py` | `TextInjector` — type text (`inject`) and press keys (`press`) at cursor via Win32 `SendInput` |
+| `injector.py` | picks the `TextInjector` backend: `injector_win32.py` (Win32 `SendInput`) or `injector_darwin.py` (pynput/Quartz) — both type text (`inject`) and press keys (`press`) at the cursor |
 | `overlay.py` | `Overlay` — status indicator: animated mic-level waveform while recording, text while transcribing (tkinter) |
-| `tray.py` | system-tray icon with Quit (pystray) |
+| `tray.py` | system-tray icon with Quit (pystray); Windows only |
 | `session_log.py` | `SessionLogger` — append JSONL session records |
-| `hotkey.py` | `PushToTalk` — global press/release listener |
+| `hotkey.py` | picks the `PushToTalk` backend: `hotkey_keyboard.py` (`keyboard` hooks) or `hotkey_darwin.py` (pynput `Listener` + held-key set) — both are global press/release listeners |
 | `controller.py` | `Controller` — record→transcribe→inject→log state machine |
 | `main.py` | wiring + threading + run loop |
 | `download_model.py` | one-time model pre-download for offline use |
 
-Everything except `config.py`, `transcriber.py`, `postprocess.py` and
-`download_model.py` is carried over unchanged from
-[local_whisper](https://github.com/ToHeinAC/local_whisper); the ASR engine is the
-only substantive difference.
+`config.py`, `transcriber.py`, `postprocess.py` and `download_model.py` are new
+relative to [local_whisper](https://github.com/ToHeinAC/local_whisper) (the ASR
+engine is the substantive difference); `injector.py` and `hotkey.py` gained the
+macOS backends. The rest is carried over unchanged. Backend selection lives in
+those two modules alone — no other module branches on the platform. See
+[docs/architecture.md](docs/architecture.md#platform-backends).
 
 ## Model
 
@@ -80,9 +83,11 @@ path during install. See
 ## Threading model
 
 - Main thread: Tk overlay `mainloop`.
-- Tray icon: own thread via `run_detached`.
-- Keyboard hooks: keyboard library thread; the release handler offloads
-  transcription to a worker thread so the hook returns immediately.
+- Tray icon: own thread via `run_detached` — Windows only; `main.py` skips it on
+  macOS, where pystray's detached mode shows nothing.
+- Keyboard hooks: the hotkey backend's own thread (`keyboard` / pynput
+  `Listener`); the release handler offloads transcription to a worker thread so
+  the hook returns immediately.
 - Overlay is updated thread-safely (other threads set desired state; a 40 ms
   poll on the main thread applies it).
 
@@ -93,13 +98,18 @@ All settings come from `.env` (see `.env.example`). Details in
 
 ## Run & deploy
 
-`install.bat` (vendor uv + Python into `tools\`, sync deps, download model,
-desktop shortcut), then `run.bat`. No system Python required. Details in
+Windows: `install.bat` (vendor uv + Python into `tools\`, sync deps, download
+model, desktop shortcut), then `run.bat`.
+macOS: `./install.sh`, then `./run.sh` — same steps, no shortcut, and the
+launching terminal needs the Microphone, **Input Monitoring** and
+**Accessibility** permissions.
+No system Python required on either. Details in
 [docs/deployment.md](docs/deployment.md).
 
 ## Tests
 
-`uv run pytest -m "not slow"` — 23 fast unit tests (hardware mocked).
+`uv run pytest -m "not slow"` — 55 fast unit tests (hardware mocked); the
+platform backends account for the skips, 1 on macOS and 8 on Windows.
 `uv run pytest -m slow` — integration test that loads the real model.
 
 | Area | Test file |
@@ -108,6 +118,7 @@ desktop shortcut), then `run.bat`. No system Python required. Details in
 | transcriber (empty + real model) | `tests/test_transcriber.py` |
 | voice formatting commands | `tests/test_commands.py` |
 | text injection | `tests/test_injector.py` |
+| hotkey combo parsing + hold/release (macOS) | `tests/test_hotkey.py` |
 | overlay level scaling | `tests/test_overlay.py` |
 | session logging | `tests/test_session_log.py` |
 | controller state machine | `tests/test_controller.py` |
@@ -115,7 +126,14 @@ desktop shortcut), then `run.bat`. No system Python required. Details in
 ## Known constraints / open items
 
 - The `keyboard` library global hook may require running as **administrator** on
-  Windows 11. Fallback option: `pynput` (no admin). See docs/architecture.md.
+  Windows 11. `hotkey_darwin.py` is a working pynput template if that has to go.
+- macOS is **implemented but not yet exercised on a live desktop**: the hotkey
+  listener, text injection (incl. umlauts) and the Input Monitoring /
+  Accessibility prompts all need a manual check.
+- No tray icon on macOS: pystray creates its status item only inside `run()`,
+   which needs the main thread the Tk overlay owns. Quit is Ctrl+C there.
+- On Apple silicon `DEVICE=auto` resolves to `cpu`. `DEVICE=mps` is passed
+  through to torch untouched but has not been verified for this RNN-T.
 - The `ctrl+shift` default is **not yet confirmed on a live desktop**: global
   hooks cannot be exercised from a headless test session (even the previous
   `ctrl+alt+space` default produces no callbacks there), so this needs a manual

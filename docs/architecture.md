@@ -23,19 +23,53 @@ without a press, is ignored.
 | Thread | Runs | Why |
 |--------|------|-----|
 | main | Tk overlay `mainloop` | tkinter must own the main thread |
-| tray | `pystray.Icon.run_detached` | `run()` blocks |
-| keyboard | global hooks | provided by the `keyboard` library |
+| tray | `pystray.Icon.run_detached` | `run()` blocks (Windows only — see below) |
+| keyboard | global hooks | provided by the hotkey backend (`keyboard` / pynput) |
 | worker | `Controller.on_release` | keep transcription off the hook thread |
 
 The overlay is not mutated from worker/hook threads directly. They set a desired
 mode (`meter` / `text` / `hidden`); a 40 ms `after` poll on the main thread
 applies it and animates the level bars, keeping widget access single-threaded.
 
+## Platform backends
+
+Everything except keyboard input and text output is platform-neutral. The two
+modules that are not select a backend at import:
+
+| Module | Windows | macOS |
+|--------|---------|-------|
+| `injector.py` | `injector_win32` — Win32 `SendInput` | `injector_darwin` — pynput / Quartz |
+| `hotkey.py` | `hotkey_keyboard` — `keyboard` global hooks | `hotkey_darwin` — pynput `Listener` |
+
+Both backends of a module expose the same class (`TextInjector`, `PushToTalk`),
+so `main.py` and `controller.py` never branch on the platform. The dependencies
+split the same way: `keyboard` installs only on Windows and `pynput` only on
+macOS, via `sys_platform` markers in `pyproject.toml`.
+
+Unicode is handled equivalently on both sides — Win32 `KEYEVENTF_UNICODE` and
+Quartz's Unicode event payload each carry the character itself rather than a key
+code, so umlauts survive whatever keyboard layout is active.
+
+The one feature that does not cross over is the **tray icon**. pystray builds its
+macOS status item inside `run()`, which expects the main thread the Tk overlay
+already owns; `run_detached()` there only marks the icon ready and creates
+nothing. So `main.py` starts the tray on Windows only and prints a Ctrl+C quit
+hint on macOS, rather than showing a menu that never appears.
+
 ## Hotkey detection
 
-`PushToTalk` registers `keyboard.add_hotkey(combo, on_press)` for the down edge
-and `keyboard.on_release_key(trigger_key, on_release)` for the up edge, where
-`trigger_key` is the last key of the combo (e.g. `shift` in `ctrl+shift`).
+**Windows** (`hotkey_keyboard.py`) registers `keyboard.add_hotkey(combo, on_press)`
+for the down edge and `keyboard.on_release_key(trigger_key, on_release)` for the
+up edge, where `trigger_key` is the last key of the combo (e.g. `shift` in
+`ctrl+shift`).
+
+**macOS** (`hotkey_darwin.py`) has no press-and-hold primitive to build on, so it
+watches raw key events through a pynput `Listener` and tracks which keys are
+held: the held set covering the combo fires `start_cb`, releasing the trigger key
+fires `stop_cb`. Events go through `Listener.canonical()` first, which collapses
+left/right modifier variants and keeps a letter legible while modifiers are down.
+`HOTKEY` takes the same spellings as on Windows, plus `cmd` and the aliases
+`command` / `option` / `opt` / `control` / `super`.
 
 **Why the default is a pure-modifier combo.** `ctrl+shift` holds down comfortably
 for a long dictation and types nothing on its own if the app isn't running. The
@@ -51,10 +85,13 @@ trigger key and no code change was needed. Two things to be aware of:
   takes ~1 s, by which time the modifiers are long released — but release the
   whole combo, not just `shift`.
 
-**Admin rights:** the `keyboard` library installs a low-level global hook that on
-some Windows 11 setups requires running as administrator. If avoiding admin is a
-hard requirement, swap `hotkey.py` to `pynput` keyboard listeners (tracking the
-modifier+key set manually); the `PushToTalk` interface can stay the same.
+**Permissions.** On Windows the `keyboard` library installs a low-level global
+hook that on some Windows 11 setups requires running as administrator. macOS
+gates the two halves separately through TCC, granted to whichever app launches
+the process (Terminal, iTerm, …): the listener needs **Input Monitoring**, the
+injector needs **Accessibility**. Missing either fails *silently* — no keys seen,
+or nothing typed — rather than raising. If the Windows side ever needs to shed
+its admin requirement, `hotkey_darwin.py` is a working pynput template.
 
 ## ASR model
 

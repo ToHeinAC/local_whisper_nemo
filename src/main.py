@@ -2,14 +2,15 @@
 
 Threading model:
 - main thread runs the Tk overlay mainloop
-- the tray icon runs on its own thread (run_detached)
-- keyboard hooks fire on the keyboard library's thread; the stop handler offloads
+- the tray icon runs on its own thread (run_detached); Windows only
+- keyboard hooks fire on the hotkey backend's thread; the stop handler offloads
   transcription to a worker thread so the hook returns immediately
 """
 
 from __future__ import annotations
 
 import logging
+import sys
 import threading
 
 from .config import load_settings
@@ -57,15 +58,24 @@ def main() -> None:
     except ValueError as exc:
         print(
             f"\nInvalid HOTKEY {settings.hotkey!r} in .env: {exc.args[0]}\n"
-            "Use keyboard-library key names, e.g. 'ctrl+shift' or 'ctrl+alt+space'."
+            "Use key names like 'ctrl+shift' or 'ctrl+alt+space'."
         )
         raise SystemExit(1)
 
-    tray = create_tray(on_quit=overlay.stop)
-    tray.run_detached()
+    if sys.platform == "darwin":
+        # pystray builds its macOS status item inside run(), which wants the main
+        # thread the Tk overlay already owns; run_detached() there only marks the
+        # icon ready and shows nothing. Skip it rather than pretend it is there.
+        quit_hint = "Quit with Ctrl+C."
+    else:
+        create_tray(on_quit=overlay.stop).run_detached()
+        quit_hint = "Quit from the tray icon."
 
-    print(f"Ready. Hold {settings.hotkey} to dictate. Quit from the tray icon.")
-    overlay.mainloop()
+    print(f"Ready. Hold {settings.hotkey} to dictate. {quit_hint}")
+    try:
+        overlay.mainloop()
+    except KeyboardInterrupt:
+        overlay.stop()
 
 
 if __name__ == "__main__":

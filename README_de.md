@@ -1,6 +1,6 @@
 # local_whisper_nemo
 
-Portables Windows-11-Push-to-Talk-Diktat, vollständig offline.
+Portables Push-to-Talk-Diktat für Windows 11 und macOS, vollständig offline.
 
 Halte `Strg+Shift` gedrückt, sprich (am besten in ein Headset), lass los — der
 Text wird direkt dort eingetippt, wo dein Cursor steht (Word, Browser, Chat, …).
@@ -13,28 +13,39 @@ Die Spracherkennung läuft lokal mit NVIDIAs
 
 ## Inbetriebnahme
 
-Doppelklick auf `install.bat`. Das Skript legt ein portables `uv` und ein
-verwaltetes Python in `tools\` ab, installiert die Abhängigkeiten, lädt das Modell
-nach `models\` und erstellt eine Desktop-Verknüpfung.
+**Windows** — Doppelklick auf `install.bat`.
+**macOS** — `./install.sh` im Terminal ausführen.
+
+Beide legen ein portables `uv` und ein verwaltetes Python in `tools/` ab,
+installieren die Abhängigkeiten, laden das Modell nach `models/` und erstellen
+(unter Windows) eine Desktop-Verknüpfung.
 
 Du brauchst weder **Admin-Rechte** noch ein **systemweites Python**. Netzwerkzugriff
 ist nur für diese einmalige Installation nötig — danach läuft alles offline.
 
 ## Verwendung
 
-Starte über die Desktop-Verknüpfung (oder `run.bat`). Die App läuft im Hintergrund
-und zeigt nur ein Icon im System-Tray.
+**Windows** — starte über die Desktop-Verknüpfung (oder `run.bat`). Die App läuft
+im Hintergrund und zeigt nur ein Icon im System-Tray.
+**macOS** — starte `./run.sh` im Terminal. Ein Tray-Icon gibt es dort nicht.
 
 - **Halten** von `Strg+Shift` → eine kleine Wellenform-Anzeige erscheint, solange aufgenommen wird.
 - **Loslassen** → der Text wird transkribiert und an der Cursorposition eingetippt; die Anzeige verschwindet.
-- **Beenden** über das Tray-Icon.
+- **Beenden** über das Tray-Icon (Windows) bzw. mit Strg+C im Terminal (macOS).
 
 Beim ersten Start dauert es rund 45 Sekunden, bis das Modell im Speicher ist —
 erst danach reagiert der Hotkey.
 
-> Wenn du **mehr als ein Tastaturlayout** installiert hast, benutzt Windows
-> `Strg+Shift` selbst zum Umschalten zwischen den Layouts. Trage in dem Fall in
-> der `.env` einen anderen `HOTKEY` ein (z. B. `ctrl+alt+space`).
+> **Berechtigungen unter macOS.** Gib dem Terminal, aus dem du startest, unter
+> Systemeinstellungen → Datenschutz & Sicherheit die Rechte *Mikrofon*,
+> *Eingabeüberwachung* und *Bedienungshilfen* und starte es danach neu. Ohne die
+> letzten beiden reagiert der Hotkey nicht oder es wird nichts getippt — ohne
+> jede Fehlermeldung. Details in
+> [docs/deployment.md](docs/deployment.md#macos-permissions).
+
+> Wenn du unter Windows **mehr als ein Tastaturlayout** installiert hast, benutzt
+> Windows `Strg+Shift` selbst zum Umschalten zwischen den Layouts. Trage in dem
+> Fall in der `.env` einen anderen `HOTKEY` ein (z. B. `ctrl+alt+space`).
 
 Gesprochene Formatierungsbefehle, deutsch und englisch:
 
@@ -70,6 +81,11 @@ uv run pytest -m "not slow"    # schnelle Unit-Tests
 uv run pytest -m slow          # lädt das echte Modell
 uv run python -m src.main      # aus dem Quellcode starten
 ```
+
+Unter macOS nimm `./install.sh` (mindestens aber `scripts/bootstrap_python.sh`)
+statt eines nackten `uv sync`: Das bindet das mitgelieferte uv-Python ein. Das
+CPython von Homebrew ist ohne `_tkinter` gebaut, damit lässt sich die
+Overlay-Anzeige nicht importieren.
 
 ## Dokumentation
 
