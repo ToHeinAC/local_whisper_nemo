@@ -45,7 +45,7 @@ deliberate exclusions are in
 | `postprocess.py` | `normalize()` — drop hesitations, spell numbers as digits (de/en) |
 | `commands.py` | `parse()` — split transcript into text + special-key actions (voice formatting) |
 | `injector.py` | picks the `TextInjector` backend: `injector_win32.py` (Win32 `SendInput`) or `injector_darwin.py` (pynput/Quartz) — both type text (`inject`) and press keys (`press`) at the cursor |
-| `overlay.py` | `Overlay` — status indicator: animated mic-level waveform while recording, text while transcribing (tkinter) |
+| `overlay.py` | `Overlay` — status indicator: animated mic-level waveform while recording, text while transcribing (tkinter). On macOS it also takes the process out of the activation order, so showing it does not steal the focus the injected text depends on |
 | `tray.py` | system-tray icon with Quit (pystray); Windows only |
 | `session_log.py` | `SessionLogger` — append JSONL session records |
 | `hotkey.py` | picks the `PushToTalk` backend: `hotkey_keyboard.py` (`keyboard` hooks) or `hotkey_darwin.py` (pynput `Listener` + held-key set) — both are global press/release listeners |
@@ -127,9 +127,15 @@ platform backends account for the skips, 1 on macOS and 8 on Windows.
 
 - The `keyboard` library global hook may require running as **administrator** on
   Windows 11. `hotkey_darwin.py` is a working pynput template if that has to go.
-- macOS is **implemented but not yet exercised on a live desktop**: the hotkey
-  listener, text injection (incl. umlauts) and the Input Monitoring /
-  Accessibility prompts all need a manual check.
+- macOS, verified end-to-end against a real TextEdit window: a full
+  record→transcribe→inject cycle (audio and ASR mocked) types `Grüße ABC` at the
+  cursor with umlauts intact, and Tk starts from inside the `.venv`. The overlay
+  must neither activate the process nor re-order its window — both were needed,
+  see [docs/architecture.md](docs/architecture.md#platform-backends).
+- macOS, still unverified: the live hotkey and its Input Monitoring prompt (a
+  global listener cannot be exercised from a test session), and whether the
+  overlay actually *renders* — checking pixels needs Screen Recording
+  permission, which the development session did not have.
 - No tray icon on macOS: pystray creates its status item only inside `run()`,
    which needs the main thread the Tk overlay owns. Quit is Ctrl+C there.
 - On Apple silicon `DEVICE=auto` resolves to `cpu`. `DEVICE=mps` is passed

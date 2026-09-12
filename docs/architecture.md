@@ -56,6 +56,42 @@ already owns; `run_detached()` there only marks the icon ready and creates
 nothing. So `main.py` starts the tray on Windows only and prints a Ctrl+C quit
 hint on macOS, rather than showing a menu that never appears.
 
+Two further macOS-only adjustments live in `overlay.py`:
+
+- **Focus.** Two independent things had to be fixed before the transcript
+  reached the cursor, and both present as the same symptom — the text simply
+  never appears.
+
+  1. Showing a Tk window *activates the process*, moving the frontmost app away
+     from the one being dictated into. Right after `tk.Tk()` the overlay asks
+     AppKit for the accessory activation policy, which takes the process out of
+     the activation order and off the Dock. That call must come *after* Tk
+     starts: touching `NSApplication` first stops Tk installing its
+     `TKApplication` subclass and the first window dies on an unrecognised
+     selector. A non-bundled process may settle on `Prohibited` rather than the
+     `Accessory` asked for; both are non-activatable, which is the property
+     being bought.
+  2. That alone is **not enough**. `deiconify()` runs `makeKeyAndOrderFront:`,
+     which makes the *target* app's window resign key — while the overlay, being
+     borderless, reports `canBecomeKeyWindow = NO` and takes nothing on. The
+     target stays frontmost and yet nothing holds keyboard focus, so the
+     injected events go nowhere. `_map_parked()` therefore maps the window once
+     at startup, and every later show/hide is an `-alpha` change, which never
+     re-orders windows. Measured against a real TextEdit document:
+
+     | overlay state | frontmost | transcript arrives |
+     |---------------|-----------|--------------------|
+     | no Tk at all | TextEdit | yes |
+     | built, never shown | TextEdit | yes |
+     | shown via `deiconify`, no policy | python3 | no |
+     | shown via `deiconify`, policy set | TextEdit | no |
+     | shown via alpha (current) | TextEdit | yes |
+- **Tcl lookup.** uv's managed CPython keeps its Tcl under the interpreter's own
+  prefix, which a `.venv` shadows — `tk.Tk()` then fails with *can't find a
+  usable init.tcl* and the app never starts. `overlay.py` points `TCL_LIBRARY`
+  at `sys.base_prefix/lib/tcl8.6` before importing tkinter, the same
+  set-it-before-the-import trick `transcriber.py` uses for `HF_HUB_OFFLINE`.
+
 ## Hotkey detection
 
 **Windows** (`hotkey_keyboard.py`) registers `keyboard.add_hotkey(combo, on_press)`

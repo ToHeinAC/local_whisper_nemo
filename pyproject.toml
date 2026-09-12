@@ -13,6 +13,8 @@ dependencies = [
     "numpy>=1.24",
     "keyboard>=0.13.5; sys_platform == 'win32'",
     "pynput>=1.7.6; sys_platform == 'darwin'",
+    # AppKit, for the overlay's accessory activation policy (see overlay.py)
+    "pyobjc-framework-cocoa>=10.0; sys_platform == 'darwin'",
     "pystray>=0.19.5",
     "pillow>=10.0",
     "python-dotenv>=1.0",

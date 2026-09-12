@@ -87,6 +87,13 @@ Only the microphone prompts on its own; the other two fail silently, so set them
 before the first run. After granting Input Monitoring or Accessibility, **restart
 the terminal app** — macOS only re-reads them at process start.
 
+**The app has no Dock icon on macOS**, by design: the overlay puts the process
+into a non-activating role, and maps its window once at startup rather than
+re-showing it per dictation. Both are needed to keep keyboard focus on the app
+you are dictating into. Without them no window holds keyboard focus while the
+overlay is up, and the transcript is delivered nowhere — it does not appear in
+the overlay either, it is simply lost.
+
 **There is no tray icon on macOS.** pystray builds its status item inside
 `run()`, which wants the main thread the Tk overlay already owns, and its
 detached mode on macOS shows nothing at all — so the app skips it and says so at

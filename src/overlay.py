@@ -11,10 +11,26 @@ periodic poll on the main thread applies it and animates the bars. Run
 
 from __future__ import annotations
 
+import os
+import sys
 from collections import deque
+from pathlib import Path
 from typing import Callable
 
-import tkinter as tk
+if sys.platform == "darwin" and "TCL_LIBRARY" not in os.environ:
+    # uv's managed CPython keeps its Tcl under the interpreter's own prefix, but
+    # inside a .venv `sys.prefix` points at the venv instead, so Tk() dies with
+    # "can't find a usable init.tcl". Point it at the real library before
+    # tkinter is imported (the constant is read at import time).
+    _tcl = Path(sys.base_prefix) / "lib" / "tcl8.6"
+    if _tcl.is_dir():
+        os.environ["TCL_LIBRARY"] = str(_tcl)
+
+import tkinter as tk  # noqa: E402
+
+_MACOS = sys.platform == "darwin"
+# Where the macOS window sits while "hidden" — far off any screen (see _map_parked).
+PARKED = "+-4000+-4000"
 
 BARS = 40
 CANVAS_W = 260
@@ -37,6 +53,30 @@ def _bar_color(level: float) -> str:
     return "#43a047"  # green
 
 
+def _keep_app_unactivatable() -> None:
+    """Stop the overlay from stealing keyboard focus (macOS only).
+
+    Showing a Tk window activates the process, moving the frontmost app away
+    from the one being dictated into, and the injected keystrokes never reach
+    the user's document. Asking for the accessory policy — the role menu-bar
+    and background apps use — takes the process out of the activation order and
+    drops its Dock icon, which suits a push-to-talk tool.
+
+    For a non-bundled process macOS may settle on `Prohibited` rather than the
+    `Accessory` asked for here; both are non-activatable, which is the property
+    that matters.
+
+    Must run *after* tkinter is initialised: touching `NSApplication` first
+    stops Tk installing its own `TKApplication` subclass, and the first window
+    then dies on an unrecognised selector.
+    """
+    from AppKit import NSApplication, NSApplicationActivationPolicyAccessory
+
+    NSApplication.sharedApplication().setActivationPolicy_(
+        NSApplicationActivationPolicyAccessory
+    )
+
+
 class Overlay:
     def __init__(self, level_source: Callable[[], float] | None = None) -> None:
         self._level_source = level_source or (lambda: 0.0)
@@ -46,6 +86,8 @@ class Overlay:
         self._levels: deque[float] = deque([0.0] * BARS, maxlen=BARS)
 
         self.root = tk.Tk()
+        if _MACOS:
+            _keep_app_unactivatable()
         self.root.withdraw()
         self.root.overrideredirect(True)  # borderless
         self.root.attributes("-topmost", True)
@@ -58,6 +100,36 @@ class Overlay:
             self.root, text="", fg="#ffffff", bg=BG, font=("Segoe UI", 12),
             padx=16, pady=8,
         )
+
+        if _MACOS:
+            self._map_parked()
+
+    def _map_parked(self) -> None:
+        """Put the window on screen once, transparent and parked (macOS only).
+
+        `deiconify()` runs `makeKeyAndOrderFront:`, which makes the *focused*
+        app's window resign key. This window is borderless, so it cannot become
+        key itself — leaving nothing holding keyboard focus, and the injected
+        transcript goes nowhere. Mapping once at startup keeps that out of the
+        dictation path: every later show/hide is an alpha change, which does not
+        re-order windows and so never disturbs focus.
+        """
+        self.root.attributes("-alpha", 0.0)
+        self.root.geometry(PARKED)
+        self.root.deiconify()
+
+    def _show_window(self) -> None:
+        if _MACOS:
+            self.root.attributes("-alpha", 1.0)
+        elif self.root.state() == "withdrawn":
+            self.root.deiconify()
+
+    def _hide_window(self) -> None:
+        if _MACOS:
+            self.root.attributes("-alpha", 0.0)
+            self.root.geometry(PARKED)
+        elif self.root.state() != "withdrawn":
+            self.root.withdraw()
 
     def show_meter(self) -> None:
         self._levels = deque([0.0] * BARS, maxlen=BARS)
@@ -104,8 +176,7 @@ class Overlay:
 
     def _poll(self) -> None:
         if self._mode == "hidden":
-            if self.root.state() != "withdrawn":
-                self.root.withdraw()
+            self._hide_window()
         else:
             if self._mode != self._applied_mode:
                 self._apply_mode()
@@ -113,8 +184,7 @@ class Overlay:
                 self._draw_meter()
             elif self._label.cget("text") != self._text:
                 self._label.config(text=self._text)
-            if self.root.state() == "withdrawn":
-                self.root.deiconify()
+            self._show_window()
             self._position_bottom_center()
         self.root.after(POLL_MS, self._poll)
 
